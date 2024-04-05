@@ -4,25 +4,30 @@ from Crypto.Signature import pkcs1_15
 from Crypto.Hash import SHA256
 import base64
 
+
+#generate key pairs .pem file
 def generate_key_pair(filename):
     key = RSA.generate(2048)
     with open(filename, 'wb') as f:
         f.write(key.export_key('PEM'))
 
+#load RSA key file, used for verifying
 def load_key(filename):
     with open(filename, 'rb') as f:
         return RSA.import_key(f.read())
 
+#encrypt-then-sign, gets the user input and basically Encrypt(M,Kencrypt) Sign(E,Ksign)
 def encrypt_then_sign(message, encryption_key, signing_key):
     cipher = PKCS1_OAEP.new(encryption_key)
     encrypted_message = cipher.encrypt(message.encode())
 
+    #hash and sign
     signer = pkcs1_15.new(signing_key)
     h = SHA256.new(encrypted_message)
     signature = signer.sign(h)
 
     return encrypted_message, signature
-
+#verify-then-sign, Verify(S,E,Ksign), Decrypt(E,) 
 def verify_then_decrypt(encrypted_message, signature, encryption_key, signing_key):
     verifier = pkcs1_15.new(signing_key)
     h = SHA256.new(encrypted_message)
