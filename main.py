@@ -38,14 +38,14 @@ def main():
             try:
                 ciphertext = base64.b64decode(ciphertext.encode())
             except binascii.Error as e:
-                print("Base64 decoding error:", e)
+                print("Invalid input. Please enter a valid base64-encoded ciphertext.")
                 continue
                 
             signature = input("Enter the signature: ")
             try:
                 signature = base64.b64decode(signature.encode())
             except binascii.Error as e:
-                print("Base64 decoding error:", e)
+                print("Invalid input. Please enter a valid base64-encoded signature.")
                 continue
             
             encryption_key = load_key("encryption_key.pem")
