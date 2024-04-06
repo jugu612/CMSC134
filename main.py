@@ -1,43 +1,7 @@
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_OAEP
-from Crypto.Signature import pkcs1_15
-from Crypto.Hash import SHA256
 import base64
+import binascii
+from rsa_functions import generate_key_pair, load_key, encrypt_then_sign, verify_then_decrypt
 
-
-#generate key pairs .pem file
-def generate_key_pair(filename):
-    key = RSA.generate(2048)
-    with open(filename, 'wb') as f:
-        f.write(key.export_key('PEM'))
-
-#load RSA key file, used for verifying
-def load_key(filename):
-    with open(filename, 'rb') as f:
-        return RSA.import_key(f.read())
-
-#encrypt-then-sign, gets the user input and basically Encrypt(M,Kencrypt) Sign(E,Ksign)
-def encrypt_then_sign(message, encryption_key, signing_key):
-    cipher = PKCS1_OAEP.new(encryption_key)
-    encrypted_message = cipher.encrypt(message.encode())
-
-    #hash and sign
-    signer = pkcs1_15.new(signing_key)
-    h = SHA256.new(encrypted_message)
-    signature = signer.sign(h)
-
-    return encrypted_message, signature
-#verify-then-sign, Verify(S,E,Ksign), Decrypt(E,) 
-def verify_then_decrypt(encrypted_message, signature, encryption_key, signing_key):
-    verifier = pkcs1_15.new(signing_key)
-    h = SHA256.new(encrypted_message)
-    try:
-        verifier.verify(h, signature)
-        cipher = PKCS1_OAEP.new(encryption_key)
-        decrypted_message = cipher.decrypt(encrypted_message)
-        return decrypted_message.decode()
-    except (ValueError, TypeError):
-        return "Verification failed!"
 
 def main_menu():
     print("RSA Encryption Program")
@@ -48,7 +12,8 @@ def main_menu():
     choice = input("Enter your choice (1/2/3/4): ")
     return choice
 
-if __name__ == "__main__":
+
+def main():
     while True:
         choice = main_menu()
         if choice == "1":
@@ -59,29 +24,46 @@ if __name__ == "__main__":
             message = input("Enter the message to encrypt and sign: ")
             encryption_key = load_key("encryption_key.pem")
             signing_key = load_key("signing_key.pem")
-            encrypted_message, signature = encrypt_then_sign(message, encryption_key, signing_key)
-            print("Encrypted and signed message:")
-            print("Encrypted message:", base64.b64encode(encrypted_message).decode())
-            print("Signature:", base64.b64encode(signature).decode())
-            with open("encrypted_message.txt", "w") as file:
-                file.write("Encrypted Message:\n")
-                file.write(base64.b64encode(encrypted_message).decode() + "\n")
-                file.write("Signature:\n")
-                file.write(base64.b64encode(signature).decode())
-            print("Encrypted message and signature saved to 'encrypted_message.txt'.")
+            if encryption_key and signing_key:
+                ciphertext, signature = encrypt_then_sign(message, encryption_key, signing_key)
+                if ciphertext and signature:
+                    with open("ciphertext.txt", "w") as file:
+                        file.write("Ciphertext:\n")
+                        file.write(base64.b64encode(ciphertext).decode() + "\n")
+                        file.write("Signature:\n")
+                        file.write(base64.b64encode(signature).decode())
+                    print("Ciphertext and signature saved to 'ciphertext.txt'.")
         elif choice == "3":
-            encrypted_message = base64.b64decode(input("Enter the encrypted message: ").encode())
-            signature = base64.b64decode(input("Enter the signature: ").encode())
+            ciphertext = input("Enter the ciphertext: ")
+            try:
+                ciphertext = base64.b64decode(ciphertext.encode())
+            except binascii.Error as e:
+                print("Base64 decoding error:", e)
+                continue
+                
+            signature = input("Enter the signature: ")
+            try:
+                signature = base64.b64decode(signature.encode())
+            except binascii.Error as e:
+                print("Base64 decoding error:", e)
+                continue
+            
             encryption_key = load_key("encryption_key.pem")
             signing_key = load_key("signing_key.pem")
-            decrypted_message = verify_then_decrypt(encrypted_message, signature, encryption_key, signing_key)
-            print("Decrypted message:", decrypted_message)
+            if encryption_key and signing_key:
+                decrypted_message = verify_then_decrypt(ciphertext, signature, encryption_key, signing_key)
+                if decrypted_message:
+                    print("Decrypted message:", decrypted_message)
         elif choice == "4":
             print("Exiting RSA Encryption Program.")
             break
         else:
             print("Invalid choice. Please enter 1, 2, 3, or 4.")
-        
+
         proceed = input("Do you want to perform another operation? (yes/no): ")
         if proceed.lower() not in ["yes", "y", "ye"]:
             break
+
+
+if __name__ == "__main__":
+    main()
