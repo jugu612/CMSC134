@@ -1,69 +1,57 @@
-import base64
-import binascii
-from rsa_functions import generate_key_pair, load_key, encrypt_then_sign, verify_then_decrypt
-
+from base64 import b64encode, b64decode
+from rsa_functions import generate_key_pair, encrypt_sign, verify_decrypt
+import os
 
 def main_menu():
     print("RSA Encryption Program")
     print("1. Generate Key Pairs")
-    print("2. Encrypt then Sign")
+    print("2. Encrypt then Sign") 
     print("3. Verify then Decrypt")
     print("4. Exit")
     choice = input("Enter your choice (1/2/3/4): ")
     return choice
 
-
 def main():
+    folder = "keys"
+    encryption_prefix = "encryption"
+    signing_prefix = "signing"
+    
     while True:
         choice = main_menu()
         if choice == "1":
-            generate_key_pair("encryption_key.pem")
-            generate_key_pair("signing_key.pem")
-            print("Key pairs generated successfully.")
+            generate_key_pair(folder, encryption_prefix)
+            generate_key_pair(folder, signing_prefix)
         elif choice == "2":
             message = input("Enter the message to encrypt and sign: ")
-            encryption_key = load_key("encryption_key.pem")
-            signing_key = load_key("signing_key.pem")
-            if encryption_key and signing_key:
-                ciphertext, signature = encrypt_then_sign(message, encryption_key, signing_key)
-                if ciphertext and signature:
-                    with open("ciphertext.txt", "w") as file:
-                        file.write("Ciphertext:\n")
-                        file.write(base64.b64encode(ciphertext).decode() + "\n")
-                        file.write("Signature:\n")
-                        file.write(base64.b64encode(signature).decode())
-                    print("Ciphertext and signature saved to 'ciphertext.txt'.")
+            enc_public_key = os.path.join(folder, f"{encryption_prefix}_public.pem")
+            sign_private_key = os.path.join(folder, f"{signing_prefix}_private.pem")
+            ciphertext, signature = encrypt_sign(message, enc_public_key, sign_private_key)
+            if ciphertext is not None and signature is not None:
+                with open("ciphertext.txt", 'wb') as f:
+                    f.write(b64encode(ciphertext))
+                with open("signature.txt", 'wb') as f:
+                    f.write(b64encode(signature))
         elif choice == "3":
-            ciphertext = input("Enter the ciphertext: ")
-            try:
-                ciphertext = base64.b64decode(ciphertext.encode())
-            except binascii.Error as e:
-                print("Invalid input. Please enter a valid base64-encoded ciphertext.")
-                continue
-                
-            signature = input("Enter the signature: ")
-            try:
-                signature = base64.b64decode(signature.encode())
-            except binascii.Error as e:
-                print("Invalid input. Please enter a valid base64-encoded signature.")
-                continue
-            
-            encryption_key = load_key("encryption_key.pem")
-            signing_key = load_key("signing_key.pem")
-            if encryption_key and signing_key:
-                decrypted_message = verify_then_decrypt(ciphertext, signature, encryption_key, signing_key)
-                if decrypted_message:
-                    print("Decrypted message:", decrypted_message)
+            enc_private_key = os.path.join(folder, f"{encryption_prefix}_private.pem")
+            sign_public_key = os.path.join(folder, f"{signing_prefix}_public.pem")
+            with open("ciphertext.txt", 'rb') as f:
+                ciphertext = b64decode(f.read())
+            with open("signature.txt", 'rb') as f:
+                signature = b64decode(f.read())
+            decrypted_message = verify_decrypt(ciphertext, signature, enc_private_key, sign_public_key)
+            if decrypted_message:
+                print("\033[92m" + decrypted_message + "\033[0m")
+            else:
+                print("Signature verification failed or decryption error.")
         elif choice == "4":
-            print("Exiting RSA Encryption Program.")
+            print("Exiting program.")
             break
         else:
-            print("Invalid choice. Please enter 1, 2, 3, or 4.")
-
+            print("Invalid choice. Please enter a valid option.")
+        
         proceed = input("Do you want to perform another operation? (yes/no): ")
         if proceed.lower() not in ["yes", "y", "ye"]:
             break
-
 
 if __name__ == "__main__":
     main()
